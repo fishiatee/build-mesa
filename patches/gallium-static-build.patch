@@ -78,26 +78,18 @@ index be999c1..549d592 100644
    soversion : host_machine.system() == 'windows' ? '' : '2',
    version : '2.0.0',
 diff --git a/src/meson.build b/src/meson.build
-index 70bf495..8f6aaac 100644
+index c36f44b..0abbb4a 100644
 --- a/src/meson.build
 +++ b/src/meson.build
-@@ -123,6 +123,9 @@ endif
- if with_gallium_or_lvp
-   subdir('gallium')
+@@ -132,2 +132,5 @@ if with_gallium_or_lvp
  endif
 +if with_egl
 +  subdir('egl')
 +endif
  # These require libgallium (shared_glapi_lib)
- if with_gallium and (with_glx != 'disabled' or with_egl)
-   if with_gles1 and not with_glvnd
-@@ -150,9 +153,6 @@ else
-   dep_gbm = null_dep
- endif
+@@ -159,5 +162,2 @@ endif
  
 -if with_egl
 -  subdir('egl')
 -endif
  if with_gallium
-   if with_glx == 'dri' or with_platform_x11 or with_platform_xcb
-     subdir('gallium/targets/dril')
