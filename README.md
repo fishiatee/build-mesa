@@ -1,6 +1,6 @@
 # mesa builds
 
-Automatic builds of [mesa][] OpenGL & Vulkan implementations for Windows (x86, x64, arm64).
+Automatic builds of [mesa][] OpenGL & Vulkan implementations for Windows (x86, x64, arm64, arm64ec).
 
 Builds are **static** linked to their dependencies, just place necessary dll file(s) next to your exe.
 
@@ -75,6 +75,7 @@ Then run `build.cmd` batch file when these tools are installed. It accepts optio
 * `build.cmd x86` - for 32-bit Windows
 * `build.cmd x64` - for 64-bit Windows
 * `build.cmd arm64` - for Windows on ARM64, for example to use on Qualcomm Snapdragon X Elite devices
+* `build.cmd arm64ec` - for ARM64EC (x64-compatible) code, runs natively on Windows on ARM64 while remaining loadable into x64-emulated processes. Only zink is built for this target, so LLVM is not needed.
 
 Output files will be placed in `mesa-[name]-[arch]` folders.
 

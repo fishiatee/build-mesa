@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-2025
     strategy:
       matrix:
-        arch: [x86, x64, arm64]
+        arch: [x86, x64, arm64, arm64ec]
 
     outputs:
       MESA_VERSION: ${{ steps.build.outputs.MESA_VERSION }}

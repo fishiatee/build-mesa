@@ -1,0 +1,19 @@
+[binaries]
+c = 'cl.exe'
+cpp = 'cl.exe'
+ar = ['python.exe', '@DIRNAME@/lib-arm64ec.py']
+
+[built-in options]
+c_args = ['-arm64EC']
+cpp_args = ['-arm64EC']
+c_link_args = ['-machine:arm64ec']
+cpp_link_args = ['-machine:arm64ec']
+
+[host_machine]
+system = 'windows'
+cpu_family = 'aarch64'
+cpu = 'arm64ec'
+endian = 'little'
+
+[properties]
+skip_sanity_check = true
