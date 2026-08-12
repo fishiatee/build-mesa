@@ -2,6 +2,8 @@
 c = 'cl.exe'
 cpp = 'cl.exe'
 ar = ['python.exe', '@DIRNAME@/lib-arm64ec.py']
+c_ld = ['python.exe', '@DIRNAME@/link-arm64x-combine.py']
+cpp_ld = ['python.exe', '@DIRNAME@/link-arm64x-combine.py']
 
 [built-in options]
 c_args = ['-arm64EC']

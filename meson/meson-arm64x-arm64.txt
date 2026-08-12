@@ -1,0 +1,14 @@
+[binaries]
+c = 'cl.exe'
+cpp = 'cl.exe'
+c_ld = ['python.exe', '@DIRNAME@/link-arm64x-repro.py']
+cpp_ld = ['python.exe', '@DIRNAME@/link-arm64x-repro.py']
+
+[host_machine]
+system = 'windows'
+cpu_family = 'aarch64'
+cpu = 'aarch64'
+endian = 'little'
+
+[properties]
+skip_sanity_check = true

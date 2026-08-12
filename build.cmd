@@ -44,30 +44,32 @@ if "%MESA_ARCH%" equ "x86" (
   set TARGET_ARCH=arm64
   set LLVM_TARGETS_TO_BUILD=AArch64
   set TARGET_ARCH_NAME=aarch64
-) else if "%MESA_ARCH%" equ "arm64ec" (
-  rem only zink is built for ARM64EC, which does not need LLVM
-  set TARGET_ARCH=arm64ec
-  set TARGET_ARCH_NAME=arm64ec
+) else if "%MESA_ARCH%" equ "arm64x" (
+  rem only zink is built for ARM64X (hybrid ARM64+ARM64EC), which does not need LLVM
+  set TARGET_ARCH=arm64x
+  set TARGET_ARCH_NAME=arm64x
 ) else (
   echo Unknown "%MESA_ARCH%" build architecture^^!
   exit /b 1
 )
 
-rem ARM64EC uses the ARM64 developer command prompt, then cl /arm64EC and link /MACHINE:ARM64EC.
+rem ARM64X uses the ARM64 developer command prompt (cl /arm64EC + link /MACHINE:ARM64X).
 set VC_ARCH=%TARGET_ARCH%
-if "%TARGET_ARCH%" equ "arm64ec" (
+if "%TARGET_ARCH%" equ "arm64x" (
   set VC_ARCH=arm64
 )
 
-set MESON_CROSS=--cross-file "%CD%\meson\meson-%MESA_ARCH%.txt"
-if "%MESA_ARCH%" equ "x86" (
-  set MESON_CROSS=%MESON_CROSS% -Dmin-windows-version=7
+set MESON_CROSS=
+if "%MESA_ARCH%" equ "arm64x" (
+  rem ARM64X uses dedicated meson-arm64x-arm64.txt / meson-arm64x-arm64ec.txt cross files below
+) else (
+  set MESON_CROSS=--cross-file "%CD%\meson\meson-%MESA_ARCH%.txt"
+  if "%MESA_ARCH%" equ "x86" (
+    set MESON_CROSS=!MESON_CROSS! -Dmin-windows-version=7
+  )
 )
 
 set MESON_C_ARGS="-wd4189 -wd4319"
-if "%MESA_ARCH%" equ "arm64ec" (
-  set MESON_C_ARGS="-arm64EC -wd4189 -wd4319"
-)
 
 set PATH=%CD%\llvm-%MESA_ARCH%\bin;%CD%\winflexbison;%PATH%
 
@@ -135,8 +137,8 @@ if "!VS!" equ "" (
 
 rem *** download & build llvm ***
 
-if "%MESA_ARCH%" equ "arm64ec" (
-  rem ARM64EC only builds zink, which does not need LLVM
+if "%MESA_ARCH%" equ "arm64x" (
+  rem ARM64X only builds zink, which does not need LLVM
   call "%VS%\Common7\Tools\VsDevCmd.bat" -arch=%VC_ARCH% -host_arch=%HOST_ARCH% -startdir=none -no_logo || exit /b 1
   goto :skip-llvm-build
 )
@@ -261,7 +263,7 @@ git.exe apply --directory=mesa-%MESA_VERSION% patches/dxil-hash.patch           
 mkdir mesa-%MESA_VERSION%\subprojects\llvm                                   1>nul || exit /b 1
 copy meson\meson.llvm.build mesa-%MESA_VERSION%\subprojects\llvm\meson.build 1>nul || exit /b 1
 
-if "%MESA_ARCH%" neq "arm64ec" (
+if "%MESA_ARCH%" neq "arm64x" (
   rem *** llvmpipe, lavapipe ***
 
   rd /s /q mesa-build-%MESA_ARCH% 1>nul 2>nul
@@ -317,30 +319,82 @@ rem *** zink ***
 
 git.exe apply --directory=mesa-%MESA_VERSION% patches/zink-static-build.patch || exit /b 1
 
-rd /s /q mesa-build-%MESA_ARCH% 1>nul 2>nul
-meson.exe setup ^
-  mesa-build-%MESA_ARCH% ^
-  mesa-%MESA_VERSION% ^
-  --prefix="%CD%\mesa-zink-%MESA_ARCH%" ^
-  --default-library=static ^
-  -Dbuildtype=release ^
-  -Db_ndebug=true ^
-  -Db_vscrt=mt ^
-  -Dc_args=%MESON_C_ARGS% ^
-  -Dllvm=disabled ^
-  -Dplatforms=windows ^
-  -Dvideo-codecs= ^
-  -Dgallium-drivers=zink ^
-  -Degl=enabled ^
-  -Dgles1=enabled ^
-  -Dgles2=enabled ^
-  %MESON_CROSS% || exit /b 1
-ninja.exe -C mesa-build-%MESA_ARCH% install || exit /b 1
+if "%MESA_ARCH%" equ "arm64x" (
+  rem ARM64X zink: build pure ARM64 (with link repros), then ARM64EC link that
+  rem merges both into hybrid ARM64X DLLs. Requires VS 2022 17.11+ link.exe.
+  rem ARM64X_REPRO_DIR is read by meson/link-arm64x-*.py during ninja link steps.
+  set "ARM64X_REPRO_DIR=%CD%\mesa-arm64x-repros"
+  rd /s /q "%CD%\mesa-arm64x-repros" 1>nul 2>nul
+  mkdir "%CD%\mesa-arm64x-repros" 1>nul || exit /b 1
+
+  rem *** zink arm64 half (records link inputs for ARM64X combine) ***
+  rd /s /q mesa-build-arm64x-arm64 1>nul 2>nul
+  meson.exe setup ^
+    mesa-build-arm64x-arm64 ^
+    mesa-%MESA_VERSION% ^
+    --prefix="%CD%\mesa-zink-arm64x-arm64" ^
+    --default-library=static ^
+    -Dbuildtype=release ^
+    -Db_ndebug=true ^
+    -Db_vscrt=mt ^
+    -Dc_args=%MESON_C_ARGS% ^
+    -Dllvm=disabled ^
+    -Dplatforms=windows ^
+    -Dvideo-codecs= ^
+    -Dgallium-drivers=zink ^
+    -Degl=enabled ^
+    -Dgles1=enabled ^
+    -Dgles2=enabled ^
+    --cross-file "%CD%\meson\meson-arm64x-arm64.txt" || exit /b 1
+  rem Build only — install not needed; link repros + objects are consumed by the ARM64EC half.
+  ninja.exe -C mesa-build-arm64x-arm64 || exit /b 1
+
+  rem *** zink arm64ec half (produces final ARM64X images) ***
+  rd /s /q mesa-build-arm64x-arm64ec 1>nul 2>nul
+  meson.exe setup ^
+    mesa-build-arm64x-arm64ec ^
+    mesa-%MESA_VERSION% ^
+    --prefix="%CD%\mesa-zink-arm64x" ^
+    --default-library=static ^
+    -Dbuildtype=release ^
+    -Db_ndebug=true ^
+    -Db_vscrt=mt ^
+    -Dc_args="-arm64EC -wd4189 -wd4319" ^
+    -Dllvm=disabled ^
+    -Dplatforms=windows ^
+    -Dvideo-codecs= ^
+    -Dgallium-drivers=zink ^
+    -Degl=enabled ^
+    -Dgles1=enabled ^
+    -Dgles2=enabled ^
+    --cross-file "%CD%\meson\meson-arm64x-arm64ec.txt" || exit /b 1
+  ninja.exe -C mesa-build-arm64x-arm64ec install || exit /b 1
+) else (
+  rd /s /q mesa-build-%MESA_ARCH% 1>nul 2>nul
+  meson.exe setup ^
+    mesa-build-%MESA_ARCH% ^
+    mesa-%MESA_VERSION% ^
+    --prefix="%CD%\mesa-zink-%MESA_ARCH%" ^
+    --default-library=static ^
+    -Dbuildtype=release ^
+    -Db_ndebug=true ^
+    -Db_vscrt=mt ^
+    -Dc_args=%MESON_C_ARGS% ^
+    -Dllvm=disabled ^
+    -Dplatforms=windows ^
+    -Dvideo-codecs= ^
+    -Dgallium-drivers=zink ^
+    -Degl=enabled ^
+    -Dgles1=enabled ^
+    -Dgles2=enabled ^
+    %MESON_CROSS% || exit /b 1
+  ninja.exe -C mesa-build-%MESA_ARCH% install || exit /b 1
+)
 
 rem *** done ***
 
 if "%GITHUB_WORKFLOW%" neq "" (
-  if "%MESA_ARCH%" neq "arm64ec" (
+  if "%MESA_ARCH%" neq "arm64x" (
     mkdir archive-llvmpipe-%MESA_ARCH%
     pushd archive-llvmpipe-%MESA_ARCH%
     copy /y ..\mesa-llvmpipe-%MESA_ARCH%\bin\opengl32.dll     .           || exit /b 1
