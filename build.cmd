@@ -345,6 +345,7 @@ if "%MESA_ARCH%" equ "arm64x" (
     -Degl=enabled ^
     -Dgles1=enabled ^
     -Dgles2=enabled ^
+    -Dzlib:tests=disabled ^
     --cross-file "%CD%\meson\meson-arm64x-arm64.txt" || exit /b 1
   rem Build only — install not needed; link repros + objects are consumed by the ARM64EC half.
   ninja.exe -C mesa-build-arm64x-arm64 || exit /b 1
@@ -367,6 +368,7 @@ if "%MESA_ARCH%" equ "arm64x" (
     -Degl=enabled ^
     -Dgles1=enabled ^
     -Dgles2=enabled ^
+    -Dzlib:tests=disabled ^
     --cross-file "%CD%\meson\meson-arm64x-arm64ec.txt" || exit /b 1
   ninja.exe -C mesa-build-arm64x-arm64ec install || exit /b 1
 ) else (
