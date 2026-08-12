@@ -75,7 +75,7 @@ Then run `build.cmd` batch file when these tools are installed. It accepts optio
 * `build.cmd x86` - for 32-bit Windows
 * `build.cmd x64` - for 64-bit Windows (x86_64)
 * `build.cmd arm64` - for Windows on ARM64, for example to use on Qualcomm Snapdragon X Elite devices
-* `build.cmd arm64x` - for ARM64X hybrid binaries (pure ARM64 + ARM64EC in one DLL). Loads correctly into both native ARM64 processes and x64-emulated processes on Windows on ARM. Only zink is built for this target, so LLVM is not needed.
+* `build.cmd arm64x` - for ARM64X 
 
 Output files will be placed in `mesa-[name]-[arch]` folders.
 
